@@ -1,0 +1,7 @@
+
+Débogage sous android
+. Lancer ADB Logcat
+Ouvre un terminal (ou PowerShell) et tape :
+
+adb logcat -s Unity
+Cela filtre uniquement les logs générés par Unity (Debug.Log, Debug.LogError, etc.). 
