@@ -38,7 +38,7 @@ public class SliderController : MonoBehaviour
         }
     }
 
-    void ScaleSliderUpdate(float value)
+    public void ScaleSliderUpdate(float value)
     {
         transform.localScale = Vector3.one * value;
 
@@ -49,7 +49,7 @@ public class SliderController : MonoBehaviour
         }
     }
 
-    void RotateSliderUpdate(float value)
+    public void RotateSliderUpdate(float value)
     {
         transform.localEulerAngles = new Vector3(0, value, 0);
 

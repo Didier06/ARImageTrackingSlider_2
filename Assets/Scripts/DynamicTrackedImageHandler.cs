@@ -82,8 +82,15 @@ public class DynamicTrackedImageHandler : MonoBehaviour
                 if (!existingPrefab.activeSelf) existingPrefab.SetActive(true);
                 
                 // Positionnement
-                existingPrefab.transform.position = trackedImage.transform.position;
-                existingPrefab.transform.rotation = trackedImage.transform.rotation;
+                // Modification : On laisse le système de parenté gérer la position/rotation
+                // existingPrefab.transform.position = trackedImage.transform.position;
+                // existingPrefab.transform.rotation = trackedImage.transform.rotation;
+                
+                // On s'assure juste qu'il est bien enfant (au cas où il aurait été détaché)
+                if (existingPrefab.transform.parent != trackedImage.transform)
+                {
+                   existingPrefab.transform.SetParent(trackedImage.transform);
+                }
             }
             else
             {
@@ -111,7 +118,13 @@ public class DynamicTrackedImageHandler : MonoBehaviour
 
         if (prefabToSpawn != null)
         {
+            // Instantiation
             GameObject newPrefab = Instantiate(prefabToSpawn, trackedImage.transform.position, trackedImage.transform.rotation);
+            
+            // PARENTAGE CRITIQUE : Permet aux sliders/MQTT de modifier transform.localPosition/Rotation 
+            // tout en suivant le marker.
+            newPrefab.transform.SetParent(trackedImage.transform);
+            
             spawnedPrefabs[imageName] = newPrefab;
             Debug.Log($"[SPAWN] Prefab '{newPrefab.name}' créé pour {imageName} (Index: {index})");
         }

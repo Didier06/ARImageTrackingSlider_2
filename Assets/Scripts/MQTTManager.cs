@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using UnityEngine;
+using UnityEngine.UI;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
 using Newtonsoft.Json;
@@ -19,6 +20,14 @@ public class MQTTManager : MonoBehaviour
 
     private void Start()
     {
+        // VÉRIFICATION CRITIQUE : Le Dispatcher doit exister pour que MQTT puisse parler à Unity
+        if (!UnityMainThreadDispatcher.Exists())
+        {
+            Debug.Log("Création automatique du UnityMainThreadDispatcher...");
+            GameObject dispatcherObj = new GameObject("MainThreadDispatcher");
+            dispatcherObj.AddComponent<UnityMainThreadDispatcher>();
+        }
+
         client = new MqttClient(mqttBroker, mqttPort, true, null, null, MqttSslProtocols.TLSv1_2);
         client.MqttMsgPublishReceived += OnMqttMessageReceived;
         string clientId = Guid.NewGuid().ToString();
@@ -43,42 +52,41 @@ public class MQTTManager : MonoBehaviour
 
                 UnityMainThreadDispatcher.Instance().Enqueue(() =>
                 {
-                    SliderController[] controllers = FindObjectsOfType<SliderController>();
-                    foreach (var ctrl in controllers)
+                    // 1. PILOTAGE DES SLIDERS (Comme le script est sur un enfant, c'est le moyen le plus sûr)
+                    var sSlider = GameObject.Find("ScaleSlider")?.GetComponent<Slider>();
+                    var rSlider = GameObject.Find("RotateSlider")?.GetComponent<Slider>();
+
+                    if (sSlider != null) 
                     {
-                        ctrl.ApplyRemoteCommand(command);// mise à jour des slider quand une commande mqtt est reçue
+                        sSlider.value = command.scale;
+                        sSlider.onValueChanged.Invoke(command.scale); // DÉCLENCHE SliderController sur l'enfant
+                    }
+                    
+                    if (rSlider != null) 
+                    {
+                        rSlider.value = command.rot;
+                        rSlider.onValueChanged.Invoke(command.rot); // DÉCLENCHE SliderController sur l'enfant
                     }
 
+                    // 2. TEMPERATURE (Cas particulier : on doit le faire manuellement car pas de slider associé)
                     DynamicTrackedImageHandler handler = FindObjectOfType<DynamicTrackedImageHandler>();
-                    // On passe null pour récupérer n'importe quel prefab actif (celui qu'on regarde actuellment)
-                    GameObject instance = handler.GetSpawnedInstance(null);
-
-
-                    //DynamicTrackedImageHandler handler = FindObjectOfType<DynamicTrackedImageHandler>();// quel est l(objet selectionné ?
-                    //GameObject selected = handler.GetCurrentPrefab(); // on le récupère avec la méthode de DynamicTrackedIomageHandler
-
-                    Transform pointerTransform = instance.transform.Find("contener_gauge_temp/MainBody/Pointer");// l'aiguille (pointer) existe-elle dans l'objet 3D , si oui c'est la jauge
-                    //Transform pointerTransform = selected.GetComponentInChildren<Transform>(true).FirstOrDefault(t => t.name == "Pointer");
-                    if (pointerTransform != null)
+                    if (handler != null)
                     {
-                        Debug.Log("element 'Pointer' existe !");
-                        //pointerTransform.rotation = Quaternion.Euler(50f, 100f, -90f);
+                        GameObject instance = handler.GetSpawnedInstance(null);
+                        if (instance != null)
+                        {
+                            // Recherche robuste du pointeur, où qu'il soit dans la hiérarchie
+                            Transform pointerTransform = null;
+                            var allTransforms = instance.GetComponentsInChildren<Transform>(true);
+                            foreach(var t in allTransforms) { if(t.name == "Pointer") { pointerTransform = t; break; } }
 
-                        // Test : rotation absolue (remplace complètement la rotation)
-
-                        pointerTransform.localEulerAngles = new Vector3(0f, -lastCommand.temperature * 180 / 30f, 0f);
-
-
-                        // Affichage pour vérifier que la rotation est appliquée
-                        Debug.Log("Rotation appliquée à Pointer : " + pointerTransform.localEulerAngles);
-                        //pointerTransform.transform.Rotate(50f, 100f, 41f);
+                            if (pointerTransform != null)
+                            {
+                                pointerTransform.localEulerAngles = new Vector3(0f, -lastCommand.temperature * 180 / 30f, 0f);
+                                Debug.Log($"[MQTT] Temperature appliquée : {lastCommand.temperature}");
+                            }
+                        }
                     }
-                    else
-                    {
-                        Debug.Log("L'élément 'Pointer' est introuvable.");
-
-                    }
-
                 });
             }
         }
