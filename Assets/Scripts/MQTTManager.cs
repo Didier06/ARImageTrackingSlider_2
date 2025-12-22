@@ -107,7 +107,7 @@ public class MQTTManager : MonoBehaviour
                     var sSlider = GameObject.Find("ScaleSlider")?.GetComponent<Slider>();
                     var rSlider = GameObject.Find("RotateSlider")?.GetComponent<Slider>();
 
-                    if (sSlider != null) 
+                if (sSlider != null) 
                     {
                         sSlider.value = command.scale;
                         sSlider.onValueChanged.Invoke(command.scale);
@@ -119,8 +119,9 @@ public class MQTTManager : MonoBehaviour
                         rSlider.onValueChanged.Invoke(command.rot);
                     }
 
-                    // Application immédiate de la température
-                    ApplyTemperatureToScene(command.temperature);
+                    // Note: La température est maintenant gérée par le script TemperatureControl.cs
+                    // attaché directement sur l'objet Pointer du prefab.
+                    // Il viendra lire lastCommand via GetLastCommand().
                 });
             }
         }
@@ -130,54 +131,24 @@ public class MQTTManager : MonoBehaviour
         }
     }
 
-    // Méthode réutilisable pour tourner l'aiguille
-    private void ApplyTemperatureToScene(float temperature)
-    {
-        var allTransforms = FindObjectsOfType<Transform>();
-        foreach (var t in allTransforms)
-        {
-            if (t.name.IndexOf("Pointer", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                float angle = -temperature * 180f / 30f;
-                
-                // Rotation Y forcée (validée)
-                t.localEulerAngles = new Vector3(0f, angle, 0f);
-                
-                Debug.Log($"[MQTT DIRECT] Rotation appliquée : {angle} sur {t.name}");
-            }
-        }
-    }
-
-    // Appelé par DynamicTrackedImageHandler quand un objet apparait
-    public void ForceUpdateScene()
-    {
-        if (lastCommand != null)
-        {
-            Debug.Log("[MQTT] ForceUpdateScene demandé (Réapparition objet)");
-            // On le fait dans le thread principal pour être sûr
-            UnityMainThreadDispatcher.Instance().Enqueue(() => 
-            {
-               ApplyTemperatureToScene(lastCommand.temperature);
-            });
-        }
-    }
-
     public void RegisterNewSlider(SliderController controller)
     {
         if (lastCommand != null)
         {
             controller.ApplyRemoteCommand(lastCommand);
-            // Force re-trigger pour appliquer la température directe
-            try {
-                OnMqttMessageReceived(null, new MqttMsgPublishEventArgs(mqttTopic, Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(lastCommand)), false, 0, false));
-            } catch {}
         }
     }
 
-
     public void UpdateLastCommandFromLocal(float scale, float rot)
     {
-        lastCommand = new ScaleRotateCommand { scale = scale, rot = rot };
+        // IMPORTANT : Préserver la température existante !
+        float currentTemp = (lastCommand != null) ? lastCommand.temperature : 0f;
+        lastCommand = new ScaleRotateCommand { scale = scale, rot = rot, temperature = currentTemp };
+    }
+
+    public ScaleRotateCommand GetLastCommand()
+    {
+        return lastCommand;
     }
 
     [Serializable]

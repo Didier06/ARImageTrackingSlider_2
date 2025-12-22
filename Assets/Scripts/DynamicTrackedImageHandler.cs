@@ -81,25 +81,14 @@ public class DynamicTrackedImageHandler : MonoBehaviour
                 // Activez-le si nécessaire
                 if (!existingPrefab.activeSelf) 
                 {
+                    Debug.Log($"[DynamicHandler] RÉACTIVATION de {existingPrefab.name}");
                     existingPrefab.SetActive(true);
-                    
-                    // PERSISTANCE : On force la mise à jour quand l'objet réapparaît
-                    var mqtt = FindObjectOfType<MQTTManager>();
-                    if (mqtt != null) mqtt.ForceUpdateScene();
-                }
-                // Modification : On laisse le système de parenté gérer la position/rotation
-                // existingPrefab.transform.position = trackedImage.transform.position;
-                // existingPrefab.transform.rotation = trackedImage.transform.rotation;
-                
-                // On s'assure juste qu'il est bien enfant (au cas où il aurait été détaché)
-                if (existingPrefab.transform.parent != trackedImage.transform)
-                {
-                   existingPrefab.transform.SetParent(trackedImage.transform);
                 }
             }
             else
             {
                 // Pas encore de prefab -> On instancie le courant
+                Debug.Log($"[DynamicHandler] INSTANTIATION demandée pour {imageName}");
                 SpawnPrefabForImage(imageName, trackedImage);
             }
         }
@@ -132,14 +121,6 @@ public class DynamicTrackedImageHandler : MonoBehaviour
             
             spawnedPrefabs[imageName] = newPrefab;
             Debug.Log($"[SPAWN] Prefab '{newPrefab.name}' créé pour {imageName} (Index: {index})");
-
-            // PERSISTANCE : On demande à MQTT de ré-appliquer les valeurs sur le nouvel objet
-            var mqtt = FindObjectOfType<MQTTManager>();
-            if (mqtt != null)
-            {
-                // Petit délai pour être sûr que Start() du prefab est passé (optionnel mais prudent)
-                mqtt.ForceUpdateScene();
-            }
         }
     }
 
