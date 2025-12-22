@@ -18,6 +18,9 @@ public class MQTTManager : MonoBehaviour
     private ScaleRotateCommand lastCommand = null;
     //private ReceiveData receiveData= null;
 
+    private float connectionCheckTimer = 0f;
+    private float connectionCheckInterval = 5f; // Vérifier toutes les 5 secondes
+
     private void Start()
     {
         // VÉRIFICATION CRITIQUE : Le Dispatcher doit exister pour que MQTT puisse parler à Unity
@@ -28,14 +31,61 @@ public class MQTTManager : MonoBehaviour
             dispatcherObj.AddComponent<UnityMainThreadDispatcher>();
         }
 
-        client = new MqttClient(mqttBroker, mqttPort, true, null, null, MqttSslProtocols.TLSv1_2);
-        client.MqttMsgPublishReceived += OnMqttMessageReceived;
-        string clientId = Guid.NewGuid().ToString();
-        client.Connect(clientId, username, password);
-        client.Publish("FABLAB_21_22/unity/test/out", Encoding.UTF8.GetBytes("Bienvenue de la part de Unity !"), MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, false);
-        client.Subscribe(new string[] { mqttTopic }, new byte[] { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE });
+        AttemptConnection();
+    }
 
-        Debug.Log("MQTT connecté.");
+    private void Update()
+    {
+        // Système de reconnexion automatique
+        connectionCheckTimer += Time.deltaTime;
+        if (connectionCheckTimer >= connectionCheckInterval)
+        {
+            connectionCheckTimer = 0f;
+            if (client == null || !client.IsConnected)
+            {
+                Debug.LogWarning("MQTT déconnecté. Tentative de reconnexion...");
+                AttemptConnection();
+            }
+        }
+
+        // HEARTBEAT LOG
+        heartbeatTimer += Time.deltaTime;
+        if (heartbeatTimer >= 5.0f)
+        {
+            heartbeatTimer = 0f;
+            bool isConnected = (client != null && client.IsConnected);
+            Debug.Log($"[MQTT HEARTBEAT] Connected? {isConnected} | Time: {Time.time}");
+        }
+    }
+    private float heartbeatTimer = 0f;
+
+    private void AttemptConnection()
+    {
+        try
+        {
+            if (client != null && client.IsConnected) return;
+
+            // Création du client si nécessaire (ou recréation si l'ancien est corrompu)
+            if (client == null)
+            {
+                client = new MqttClient(mqttBroker, mqttPort, true, null, null, MqttSslProtocols.TLSv1_2);
+                client.MqttMsgPublishReceived += OnMqttMessageReceived;
+            }
+
+            string clientId = Guid.NewGuid().ToString();
+            client.Connect(clientId, username, password);
+            
+            if (client.IsConnected)
+            {
+                Debug.Log("MQTT connecté avec succès !");
+                client.Publish("FABLAB_21_22/unity/test/out", Encoding.UTF8.GetBytes("Reconnexion Unity OK"), MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, false);
+                client.Subscribe(new string[] { mqttTopic }, new byte[] { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE });
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Échec de la connexion MQTT : " + e.Message);
+        }
     }
 
     private void OnMqttMessageReceived(object sender, MqttMsgPublishEventArgs e)
@@ -49,44 +99,28 @@ public class MQTTManager : MonoBehaviour
             if (command != null)
             {
                 lastCommand = command;
+                Debug.Log($"[MQTT DEBUG] Parsed -> Scale:{command.scale}, Rot:{command.rot}, Temp:{command.temperature}");
 
                 UnityMainThreadDispatcher.Instance().Enqueue(() =>
                 {
-                    // 1. PILOTAGE DES SLIDERS (Comme le script est sur un enfant, c'est le moyen le plus sûr)
+                    // 1. PILOTAGE DES SLIDERS
                     var sSlider = GameObject.Find("ScaleSlider")?.GetComponent<Slider>();
                     var rSlider = GameObject.Find("RotateSlider")?.GetComponent<Slider>();
 
                     if (sSlider != null) 
                     {
                         sSlider.value = command.scale;
-                        sSlider.onValueChanged.Invoke(command.scale); // DÉCLENCHE SliderController sur l'enfant
+                        sSlider.onValueChanged.Invoke(command.scale);
                     }
                     
                     if (rSlider != null) 
                     {
                         rSlider.value = command.rot;
-                        rSlider.onValueChanged.Invoke(command.rot); // DÉCLENCHE SliderController sur l'enfant
+                        rSlider.onValueChanged.Invoke(command.rot);
                     }
 
-                    // 2. TEMPERATURE (Cas particulier : on doit le faire manuellement car pas de slider associé)
-                    DynamicTrackedImageHandler handler = FindObjectOfType<DynamicTrackedImageHandler>();
-                    if (handler != null)
-                    {
-                        GameObject instance = handler.GetSpawnedInstance(null);
-                        if (instance != null)
-                        {
-                            // Recherche robuste du pointeur, où qu'il soit dans la hiérarchie
-                            Transform pointerTransform = null;
-                            var allTransforms = instance.GetComponentsInChildren<Transform>(true);
-                            foreach(var t in allTransforms) { if(t.name == "Pointer") { pointerTransform = t; break; } }
-
-                            if (pointerTransform != null)
-                            {
-                                pointerTransform.localEulerAngles = new Vector3(0f, -lastCommand.temperature * 180 / 30f, 0f);
-                                Debug.Log($"[MQTT] Temperature appliquée : {lastCommand.temperature}");
-                            }
-                        }
-                    }
+                    // Application immédiate de la température
+                    ApplyTemperatureToScene(command.temperature);
                 });
             }
         }
@@ -96,11 +130,47 @@ public class MQTTManager : MonoBehaviour
         }
     }
 
+    // Méthode réutilisable pour tourner l'aiguille
+    private void ApplyTemperatureToScene(float temperature)
+    {
+        var allTransforms = FindObjectsOfType<Transform>();
+        foreach (var t in allTransforms)
+        {
+            if (t.name.IndexOf("Pointer", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                float angle = -temperature * 180f / 30f;
+                
+                // Rotation Y forcée (validée)
+                t.localEulerAngles = new Vector3(0f, angle, 0f);
+                
+                Debug.Log($"[MQTT DIRECT] Rotation appliquée : {angle} sur {t.name}");
+            }
+        }
+    }
+
+    // Appelé par DynamicTrackedImageHandler quand un objet apparait
+    public void ForceUpdateScene()
+    {
+        if (lastCommand != null)
+        {
+            Debug.Log("[MQTT] ForceUpdateScene demandé (Réapparition objet)");
+            // On le fait dans le thread principal pour être sûr
+            UnityMainThreadDispatcher.Instance().Enqueue(() => 
+            {
+               ApplyTemperatureToScene(lastCommand.temperature);
+            });
+        }
+    }
+
     public void RegisterNewSlider(SliderController controller)
     {
         if (lastCommand != null)
         {
-            controller.ApplyRemoteCommand(lastCommand);// mise à jour des sliders   > dans SliderController.js
+            controller.ApplyRemoteCommand(lastCommand);
+            // Force re-trigger pour appliquer la température directe
+            try {
+                OnMqttMessageReceived(null, new MqttMsgPublishEventArgs(mqttTopic, Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(lastCommand)), false, 0, false));
+            } catch {}
         }
     }
 
@@ -110,13 +180,17 @@ public class MQTTManager : MonoBehaviour
         lastCommand = new ScaleRotateCommand { scale = scale, rot = rot };
     }
 
-
     [Serializable]
     public class ScaleRotateCommand
     {
+        [JsonProperty("scale")]
         public float scale;
+
+        [JsonProperty("rot")]
         public float rot;
-        public float temperature; //  ajout de la clé temperature
+
+        [JsonProperty("temperature")]
+        public float temperature;
     }
 
     //public class ReceiveData

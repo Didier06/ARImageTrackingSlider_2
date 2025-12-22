@@ -127,6 +127,14 @@ public class DynamicTrackedImageHandler : MonoBehaviour
             
             spawnedPrefabs[imageName] = newPrefab;
             Debug.Log($"[SPAWN] Prefab '{newPrefab.name}' créé pour {imageName} (Index: {index})");
+
+            // PERSISTANCE : On demande à MQTT de ré-appliquer les valeurs sur le nouvel objet
+            var mqtt = FindObjectOfType<MQTTManager>();
+            if (mqtt != null)
+            {
+                // Petit délai pour être sûr que Start() du prefab est passé (optionnel mais prudent)
+                mqtt.ForceUpdateScene();
+            }
         }
     }
 

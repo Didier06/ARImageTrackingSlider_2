@@ -9,6 +9,9 @@ public class SliderController : MonoBehaviour
     public float rotMinValue = 0f;
     public float rotMaxValue = 360f;
 
+    public enum Axis { X, Y, Z }
+    public Axis pointerRotationAxis = Axis.X; // X est le bon axe pour le modèle Blender actuel
+
     private Slider scaleSlider;
     private Slider rotateSlider;
 
@@ -16,20 +19,32 @@ public class SliderController : MonoBehaviour
 
     void Start()
     {
-        scaleSlider = GameObject.Find("ScaleSlider").GetComponent<Slider>();
-        rotateSlider = GameObject.Find("RotateSlider").GetComponent<Slider>();
+        // Recherche sécurisée des sliders (ils peuvent être absents)
+        var scaleObj = GameObject.Find("ScaleSlider");
+        if (scaleObj != null) 
+        {
+            scaleSlider = scaleObj.GetComponent<Slider>();
+            if (scaleSlider != null)
+            {
+                scaleSlider.minValue = scaleMinValue;
+                scaleSlider.maxValue = scaleMaxValue;
+                scaleSlider.onValueChanged.AddListener(ScaleSliderUpdate);
+                ScaleSliderUpdate(scaleSlider.value);
+            }
+        }
 
-        scaleSlider.minValue = scaleMinValue;
-        scaleSlider.maxValue = scaleMaxValue;
-        rotateSlider.minValue = rotMinValue;
-        rotateSlider.maxValue = rotMaxValue;
-
-        scaleSlider.onValueChanged.AddListener(ScaleSliderUpdate); //Quand le slider scaleSlider change de valeur, appelle la fonction ScaleSliderUpdate
-        rotateSlider.onValueChanged.AddListener(RotateSliderUpdate);
-
-        // Appliquer immédiatement les valeurs actuelles des sliders
-        ScaleSliderUpdate(scaleSlider.value);
-        RotateSliderUpdate(rotateSlider.value);
+        var rotateObj = GameObject.Find("RotateSlider");
+        if (rotateObj != null)
+        {
+            rotateSlider = rotateObj.GetComponent<Slider>();
+            if (rotateSlider != null)
+            {
+                rotateSlider.minValue = rotMinValue;
+                rotateSlider.maxValue = rotMaxValue;
+                rotateSlider.onValueChanged.AddListener(RotateSliderUpdate);
+                RotateSliderUpdate(rotateSlider.value);
+            }
+        }
 
         mqttManager = FindObjectOfType<MQTTManager>();// Recherche le premier GameObject dans la scène qui contient un composant MQTTManager (game objet MQTT qui est ds la scene XR). Et le stocke dans la variable mqttManager.
         if (mqttManager != null)
@@ -60,12 +75,32 @@ public class SliderController : MonoBehaviour
         }
     }
 
+    // Modifié : Plus de gestion locale de la température/pointer ici.
+    // C'est géré directement par MQTTManager pour éviter les conflits.
+
     public void ApplyRemoteCommand(MQTTManager.ScaleRotateCommand command)
     {
-        scaleSlider.value = command.scale;
-        ScaleSliderUpdate(command.scale);
+        Debug.Log($"[SliderController] Reçu commande Scale/Rot");
 
-        rotateSlider.value = command.rot;
-        RotateSliderUpdate(command.rot);
+        // 1. Scale et Rotation (Classique, via les sliders)
+        if (scaleSlider != null)
+        {
+            scaleSlider.value = command.scale;
+            ScaleSliderUpdate(command.scale);
+        }
+        else
+        {
+             transform.localScale = Vector3.one * command.scale;
+        }
+
+        if (rotateSlider != null)
+        {
+            rotateSlider.value = command.rot;
+            RotateSliderUpdate(command.rot);
+        }
+        else
+        {
+             transform.localEulerAngles = new Vector3(0, command.rot, 0);
+        }
     }
 }
