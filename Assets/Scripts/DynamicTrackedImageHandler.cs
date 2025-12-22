@@ -79,9 +79,14 @@ public class DynamicTrackedImageHandler : MonoBehaviour
             if (spawnedPrefabs.TryGetValue(imageName, out GameObject existingPrefab))
             {
                 // Activez-le si nécessaire
-                if (!existingPrefab.activeSelf) existingPrefab.SetActive(true);
-                
-                // Positionnement
+                if (!existingPrefab.activeSelf) 
+                {
+                    existingPrefab.SetActive(true);
+                    
+                    // PERSISTANCE : On force la mise à jour quand l'objet réapparaît
+                    var mqtt = FindObjectOfType<MQTTManager>();
+                    if (mqtt != null) mqtt.ForceUpdateScene();
+                }
                 // Modification : On laisse le système de parenté gérer la position/rotation
                 // existingPrefab.transform.position = trackedImage.transform.position;
                 // existingPrefab.transform.rotation = trackedImage.transform.rotation;
