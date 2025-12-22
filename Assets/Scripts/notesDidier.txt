@@ -5,3 +5,10 @@ Ouvre un terminal (ou PowerShell) et tape :
 
 adb logcat -s Unity
 Cela filtre uniquement les logs générés par Unity (Debug.Log, Debug.LogError, etc.). 
+
+Le prefab TemperatureH est doit avoir le script TemperaturePointer attaché sur l'enfant Pointer.
+
+Tous les prefabs doivent avoir le script SliderController attaché au premier enfant.
+
+Le script SliderController doit avoir le slider attaché au preimier enfant : le conteneur
+

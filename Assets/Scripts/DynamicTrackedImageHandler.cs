@@ -119,6 +119,14 @@ public class DynamicTrackedImageHandler : MonoBehaviour
             // tout en suivant le marker.
             newPrefab.transform.SetParent(trackedImage.transform);
             
+           /*  // Rotation supplémentaire spécifique pour le prefab Temperature
+            if (prefabToSpawn.name.Contains("Temperature"))
+            {
+                // Ajouter une rotation de -30.808° sur l'axe X pour corriger l'inclinaison du modèle FBX
+                newPrefab.transform.Rotate(30.0f, 0f, 0f, Space.Self);
+                Debug.Log($"[SPAWN] Rotation X -30.808° appliquée au prefab Temperature");
+            } */
+            
             spawnedPrefabs[imageName] = newPrefab;
             Debug.Log($"[SPAWN] Prefab '{newPrefab.name}' créé pour {imageName} (Index: {index})");
         }
