@@ -12,3 +12,71 @@ Tous les prefabs doivent avoir le script SliderController attaché au premier en
 
 Le script SliderController doit avoir le slider attaché au preimier enfant : le conteneur
 
+-6024476
+
+
+We detected a change in Auto Graphics API default setting compared 
+to the previous Unity version. 
+Auto Graphics API defaults to DirectX12 as of Unity 6.1. 
+To change to the new default setting, go to Player Settings, and re-enable 
+‘Auto Graphics API’ 
+
+43.80576688684106, 7.305833699196456
+
+
+Installer AR core 6
+tape 2 : Installez via Git URL
+Dans Package Manager, cliquez sur "+" (Add package)
+Sélectionnez "Add package from git URL..."
+Entrez cette URL :
+https://github.com/google-ar/arcore-unity-extensions.git#arf6
+
+43.805653894579834, 7.305807797078691
+
+44.24752813840569, 6.935286291587173
+44.2474943452901, 6.935706698184371
+44.24750001024893, 6.935704849824042
+
+44.24754627295839, 6.935293411065319
+44.24742045634995, 6.935178304974514
+
+43.805800332388614, 7.306167008970282
+
+
+{
+  "items": [
+    {
+      "name": "Cylinder",
+      "latitude": 43.80584,
+      "longitude": 7.305819,
+      "altitudeOffset": 3
+    },
+    {
+      "name": "Cube",
+      "latitude": 43.805800332388614,
+      "longitude": 7.306167008970282,
+      "altitudeOffset": -1.5
+    }
+  ]
+}
+
+{
+  "items": [
+    {
+      "name": "Cylinder",
+      "latitude": 43.805680005615216,
+      "longitude": 7.305708355412591,
+      "altitudeOffset": 5
+    }
+  ]
+}
+
+"C:\Program Files\Unity\Hub\Editor\6000.3.1f1\Editor\Data\PlaybackEngines\AndroidPlayer\OpenJDK\bin\keytool.exe" -list -v -keystore "%USERPROFILE%\.android\debug.keystore" -storepass android -alias androiddebugkey -keypass android
+
+"C:\Program Files\Unity\Hub\Editor\6000.3.1f1\Editor\Data\PlaybackEngines\AndroidPlayer\OpenJDK\bin\keytool.exe" -list -v -keystore "C:\Doc_local\keystore\didier.keystore" -alias arcore_unity_gps
+
+
+C:\Doc_local\keystore
+C:\Program Files\Unity\Hub\Editor\6000.3.1f1\Editor\Data\PlaybackEngines\AndroidPlayer\OpenJDK\bin
+
+
